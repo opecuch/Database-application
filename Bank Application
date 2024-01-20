@@ -1,0 +1,177 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Oracle.ManagedDataAccess.Client;
+using Oracle.ManagedDataAccess.Types;
+
+namespace ConsoleApp5
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            //connect string
+            string conStr = "User Id=opecuch;Password=opecuch; Data Source=oracle.csep.umflint.edu:1521/csep;";
+
+            //establish connection
+            using (OracleConnection con = new OracleConnection(conStr))
+            {
+                //confirm connection
+                con.Open();
+                Console.WriteLine("Connected to UM Flint Oracle DB");
+
+                //call function to display rows from accounts table
+                DisplayData(con);
+
+                //define success variable
+                bool sucess = CommitTransaction(con);
+
+                //if commit transaction function is sucessful
+                if (sucess)
+                {
+                    Console.WriteLine("Transfer from savings to checking successful + committed");
+                }
+                //if commit transaction function unsucesful
+                else
+                {
+                    Console.WriteLine("Transfer from savings to checking failed");
+                }
+                //redefine sucess variable
+                sucess= RollBackTransaction(con);
+
+                //if rollback function is sucessful
+                if (sucess)
+                {
+                    Console.WriteLine("Transfer from savings to checking successful + committed");
+                }
+                //if rollback function failed
+                else
+                {
+                    Console.WriteLine("Transfer from savings to checking failed + rolled back");
+                }
+
+            }
+ 
+
+           /* OracleCommand cmd = con.CreateCommand();
+            cmd.CommandText = " select the accowner from accounts where acctype='checking'";
+
+            OracleDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
+            {
+                Console.WriteLine("Account Owner: " + reader.GetString(0));
+            }
+
+            Console.WriteLine();
+            Console.WriteLine(" Press 'Enter' to Continue");*/
+           
+
+
+        }
+         static void DisplayData(OracleConnection con)
+        {
+            //select all rows from aaccounts table
+            string dataquery = "SELECT * FROM accounts";
+            using (OracleCommand cmd = new OracleCommand(dataquery, con))
+            {
+                using (OracleDataReader reader = cmd.ExecuteReader())
+                {
+                    Console.WriteLine("Displaying all rows from query result");
+                    //while loop for reading in and dsiplaying rows from ACCOUNTS
+                    while (reader.Read())
+                    {
+                        //Define c# variables that correspond to table column names
+                        string accOwner = reader["ACCOWNER"].ToString();
+                        int accNumber = Convert.ToInt32(reader["ACCNUMBER"]);
+                        string accType = reader["ACCTYPE"].ToString();
+                        decimal accBalance = Convert.ToDecimal(reader["ACCBALANCE"]);
+                       
+                        //Use c# variables to display infromation in outptut window
+                        Console.WriteLine($"Account Owner: {accOwner}");
+                        Console.WriteLine($"Account Number : {accNumber}");
+                        Console.WriteLine($"Account Type: {accType}");
+                        Console.WriteLine($"Account Balance: {accBalance}");
+
+                    }
+                }
+
+            }
+
+        }
+
+        //bool function for committing a transaction
+        static bool CommitTransaction(OracleConnection connection)
+        {
+            OracleTransaction transaction = connection.BeginTransaction();
+            try
+            {
+                //Queries 1 and 2 for adding $100 to checking account and subtracting $100 from savings account
+                string updateQuery1 = "UPDATE accounts SET ACCBALANCE= ACCBALANCE+100 WHERE ACCTYPE= 'Checking'";
+                string updateQuery2 = "UPDATE accounts SET ACCBALANCE= ACCBALANCE-100 WHERE ACCTYPE= 'Savings'";
+
+                using (OracleCommand cmd1 = new OracleCommand(updateQuery1, connection))
+                using (OracleCommand cmd2 = new OracleCommand(updateQuery2, connection))
+                {
+                    cmd1.Transaction = transaction;
+                    cmd2.Transaction = transaction;
+
+                    //execute queries
+                    cmd1.ExecuteNonQuery();
+                    cmd2.ExecuteNonQuery();
+
+                    //commit
+                    transaction.Commit();
+                    return true;
+                }
+            }
+            //exceptionhandling
+            catch (Exception TransactionException)
+            {
+                Console.WriteLine("Error transferring from savings to checking" +
+                    TransactionException.Message);
+                //rollback
+                transaction.Rollback();
+                return false;
+            }
+        }
+
+        //function to rollback transaction
+        static bool RollBackTransaction(OracleConnection connection)
+        {
+            OracleTransaction transaction = connection.BeginTransaction();
+            try
+            {
+                //Add $100 to checking acocunts
+                string updateQuery1 = "UPDATE accounts SET ACCBALANCE= ACCBALANCE+100 WHERE ACCTYPE= 'Checking'";
+                //Add invalid data type to savings account, expected to fail
+                string updateQuery2 = "UPDATE accounts SET ACCBALANCE= 'Invalid' WHERE ACCTYPE= 'Savings'";
+
+                using (OracleCommand cmd1 = new OracleCommand(updateQuery1, connection))
+                using (OracleCommand cmd2 = new OracleCommand(updateQuery2, connection))
+                {
+                    cmd1.Transaction = transaction;
+                    cmd2.Transaction = transaction;
+
+                    //execute queries
+                    cmd1.ExecuteNonQuery();
+                    cmd2.ExecuteNonQuery();
+
+                    //commit transaction if applicable
+                    transaction.Commit();
+                    return true;
+                }
+
+            }
+            //exceptionhandling, expected to catch query 2
+            catch (Exception TransactionException)
+            {
+                Console.WriteLine("Error transferring from savings to checking"
+                    + TransactionException.Message);
+                return false;
+            }
+        }
+    }
+   
+}
