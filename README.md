@@ -8,6 +8,7 @@ to commit and rollback a variety of transactions based on user need.
 **Getting Started**
 **Dependencies**
 C# compiler, Oracle Developer Tools
+
 **Step-by-step bullets**
 - Must have Oracle Developer Tools installed to establish connection with Oracle Database
 - Replace connection string, username, and password with approriate information to establish a connection
